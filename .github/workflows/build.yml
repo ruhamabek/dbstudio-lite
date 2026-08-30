@@ -8,9 +8,45 @@ on:
   workflow_dispatch:
 
 jobs:
-  # 1. Linux Universal Build (Built on Ubuntu 22.04 for glibc compatibility)
+  # 1. Test Gate (Runs in-memory backend tests and checks frontend types)
+  test:
+    name: Run Unit Tests & Type Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: false
+
+      - name: Run Backend Unit Tests
+        run: go test -v -race ./...
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Frontend Dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Type Check & Verify Frontend Build
+        run: |
+          cd frontend
+          npm run build
+
+  # 2. Linux Universal Build (Built on Ubuntu 22.04 for glibc compatibility)
   build-linux:
     name: Build Linux (x86_64)
+    needs: test
     runs-on: ubuntu-22.04
 
     steps:
@@ -50,9 +86,10 @@ jobs:
           path: build/bin/dbstudio-lite*
           if-no-files-found: error
 
-  # 2. macOS Universal Build (Intel + Apple Silicon)
+  # 3. macOS Universal Build (Intel + Apple Silicon)
   build-macos:
     name: Build macOS (Universal Binary)
+    needs: test
     runs-on: macos-latest
 
     steps:
@@ -92,9 +129,10 @@ jobs:
           path: build/bin/DBStudio-Lite-macOS-Universal.zip
           if-no-files-found: error
 
-  # 3. Windows 64-bit Build
+  # 4. Windows 64-bit Build
   build-windows:
     name: Build Windows (x64)
+    needs: test
     runs-on: windows-latest
 
     steps:
