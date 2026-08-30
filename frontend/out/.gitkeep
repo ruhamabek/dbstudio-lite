@@ -1,0 +1,1 @@
+# Keep frontend/out directory tracked so go:embed does not fail on fresh clones

@@ -35,4 +35,5 @@ build/bin
 node_modules
 frontend/dist
 .next
-frontend/out
+frontend/out/*
+!frontend/out/.gitkeep
