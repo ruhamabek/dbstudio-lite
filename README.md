@@ -1,5 +1,9 @@
 # DBStudio Lite
 
+[![Total Downloads](https://img.shields.io/github/downloads/ruhamabek/dbstudio-lite/total?style=flat-square&color=000000&label=Downloads)](https://github.com/ruhamabek/dbstudio-lite/releases)
+[![Latest Release](https://img.shields.io/github/v/release/ruhamabek/dbstudio-lite?style=flat-square&color=000000&label=Release)](https://github.com/ruhamabek/dbstudio-lite/releases)
+[![License](https://img.shields.io/github/license/ruhamabek/dbstudio-lite?style=flat-square&color=000000)](https://github.com/ruhamabek/dbstudio-lite/blob/main/LICENSE)
+
 DBStudio Lite is a lightweight, cross-platform PostgreSQL desktop client built with Go and Next.js, packaged via Wails v2. The project emphasizes modular software design, test-driven development (TDD), strict dependency injection, and clean separation between backend domain logic and user interface presentation.
 
 ## Screenshots
