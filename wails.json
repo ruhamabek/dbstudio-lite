@@ -1,0 +1,14 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "dbstudio-lite",
+  "outputfilename": "dbstudio-lite",
+  "build:tags": "webkit2_41",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "author": {
+    "name": "Ruhama",
+    "email": "ruhamauzubo@gmail.com"
+  }
+}
