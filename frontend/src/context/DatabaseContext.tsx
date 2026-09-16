@@ -154,10 +154,15 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
       try {
         await Connect(cfg)
         await Ping()
+        const activeDsn =
+          cfg.driver === "sqlite" || cfg.filePath
+            ? cfg.filePath
+            : `${cfg.user}@${cfg.host}:${cfg.port || (cfg.driver === "mysql" ? 3306 : 5432)}/${cfg.database}`
+
         setConnection({
           isConnected: true,
           isConnecting: false,
-          activeDsn: `${cfg.User}@${cfg.Host}:${cfg.Port || 5432}/${cfg.Database}`,
+          activeDsn: activeDsn,
           error: null,
         })
         await loadTables()

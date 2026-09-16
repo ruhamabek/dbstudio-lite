@@ -22,7 +22,7 @@ func main() {
 	storePath := filepath.Join(configDir, "dbstudio-lite", "connections.json")
 	store := db.NewFileConnectionStore(storePath)
 
-	manager := db.NewConnectionManager(db.NewPgxConnector())
+    manager := db.NewConnectionManager(db.NewMultiDriverConnector())
 	app := NewApp(manager, store)
 
  	err = wails.Run(&options.App{

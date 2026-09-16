@@ -22,9 +22,11 @@ func (w *pgxRowsWrapper) Columns() ([]string, error) {
 func (w *pgxRowsWrapper) Next() bool {
 	return w.rows.Next()
 }
+
 func (w *pgxRowsWrapper) Scan(dest ...any) error {
 	return w.rows.Scan(dest...)
 }
+
 func (w *pgxRowsWrapper) Close() error {
 	w.rows.Close()
 	return nil
@@ -51,12 +53,16 @@ func (c *pgxClient) Close() error {
 	return nil
 }
 
+func NewPgxClient(ctx context.Context, dsn string) (Client, error) {
+	pool, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		return nil, err
+	}
+	return &pgxClient{pool: pool}, nil
+}
+
 func NewPgxConnector() Connector {
-	return func(ctx context.Context, dsn string) (Client, error) {
-		pool, err := pgxpool.New(ctx, dsn)
-		if err != nil {
-			return nil, err
-		}
-		return &pgxClient{pool: pool}, nil
+	return func(ctx context.Context, cfg Config) (Client, error) {
+		return NewPgxClient(ctx, cfg.ConnectionString())
 	}
 }

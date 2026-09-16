@@ -20,12 +20,16 @@ import {
   Sliders,
   Bookmark,
   Trash2,
+  FileCode,
+  Layers,
 } from "lucide-react"
 
 interface ConnectionModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
 }
+
+type DriverType = "postgres" | "mysql" | "sqlite"
 
 export function ConnectionModal({ open, onOpenChange }: ConnectionModalProps) {
   const {
@@ -41,22 +45,39 @@ export function ConnectionModal({ open, onOpenChange }: ConnectionModalProps) {
     savedConnections.length > 0 ? "saved" : "url"
   )
 
-   const [rawUrl, setRawUrl] = useState(
+  const [selectedDriver, setSelectedDriver] = useState<DriverType>("postgres")
+  const [sqlitePath, setSqlitePath] = useState("/home/sapphire/dbstudio-lite/sample.db")
+
+  // URL mode
+  const [rawUrl, setRawUrl] = useState(
     "postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable"
   )
   const [profileName, setProfileName] = useState("")
   const [shouldSave, setShouldSave] = useState(false)
 
-   const [config, setConfig] = useState<db.Config>(
-    new db.Config({
-      Host: "localhost",
-      Port: 5432,
-      User: "postgres",
-      Password: "",
-      Database: "postgres",
-      SSLMode: "disable",
-    })
-  )
+   const [host, setHost] = useState("localhost")
+  const [port, setPort] = useState("5432")
+  const [database, setDatabase] = useState("postgres")
+  const [user, setUser] = useState("postgres")
+  const [password, setPassword] = useState("")
+  const [sslMode, setSslMode] = useState("disable")
+
+  const handleDriverChange = (driver: DriverType) => {
+    setSelectedDriver(driver)
+    if (driver === "sqlite") {
+      setRawUrl("sqlite:///home/sapphire/dbstudio-lite/sample.db")
+    } else if (driver === "mysql") {
+      if (port === "5432" || !port) setPort("3306")
+      if (user === "postgres") setUser("root")
+      if (database === "postgres") setDatabase("mydb")
+      setRawUrl("mysql://root:password@localhost:3306/mydb")
+    } else {
+      if (port === "3306" || !port) setPort("5432")
+      if (user === "root") setUser("postgres")
+      if (database === "mydb") setDatabase("postgres")
+      setRawUrl("postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable")
+    }
+  }
 
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -67,7 +88,34 @@ export function ConnectionModal({ open, onOpenChange }: ConnectionModalProps) {
         await saveCurrentConnection(profileName.trim(), rawUrl)
       }
     } else {
-      success = await connectWithConfig(config)
+      let cfg: db.Config
+      if (selectedDriver === "sqlite") {
+        cfg = new db.Config({
+          driver: "sqlite",
+          filePath: sqlitePath.trim(),
+        })
+      } else {
+        cfg = new db.Config({
+          driver: selectedDriver,
+          host: host.trim(),
+          port: parseInt(port, 10) || (selectedDriver === "mysql" ? 3306 : 5432),
+          database: database.trim(),
+          user: user.trim(),
+          password: password,
+          sslMode: selectedDriver === "postgres" ? sslMode : "",
+          filePath: "",
+        })
+      }
+      success = await connectWithConfig(cfg)
+      if (success && shouldSave && profileName.trim()) {
+        const urlToSave =
+          selectedDriver === "sqlite"
+            ? `sqlite://${sqlitePath.trim()}`
+            : selectedDriver === "mysql"
+            ? `mysql://${user}:${password}@${host}:${port}/${database}`
+            : `postgres://${user}:${password}@${host}:${port}/${database}?sslmode=${sslMode}`
+        await saveCurrentConnection(profileName.trim(), urlToSave)
+      }
     }
     if (success) {
       onOpenChange(false)
@@ -90,14 +138,15 @@ export function ConnectionModal({ open, onOpenChange }: ConnectionModalProps) {
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
                 <Database className="h-4.5 w-4.5" />
               </div>
-              <DialogTitle className="text-lg font-bold">Connect to PostgreSQL</DialogTitle>
+              <DialogTitle className="text-lg font-bold">Connect to Database</DialogTitle>
             </div>
             <DialogDescription className="text-sm">
-              Select a saved profile or enter connection credentials.
+              Select a saved profile or connect to PostgreSQL, MySQL, or SQLite.
             </DialogDescription>
           </DialogHeader>
 
-           <div className="flex rounded-lg bg-muted p-1 text-muted-foreground text-sm font-medium">
+          {/* Mode Switcher */}
+          <div className="flex rounded-lg bg-muted p-1 text-muted-foreground text-sm font-medium">
             <button
               type="button"
               onClick={() => setMode("saved")}
@@ -120,7 +169,7 @@ export function ConnectionModal({ open, onOpenChange }: ConnectionModalProps) {
               }`}
             >
               <Link className="h-4 w-4" />
-              URL
+              URL / File
             </button>
             <button
               type="button"
@@ -186,7 +235,7 @@ export function ConnectionModal({ open, onOpenChange }: ConnectionModalProps) {
                   <Bookmark className="h-7 w-7 mx-auto opacity-30" />
                   <p className="font-semibold text-foreground">No saved connections</p>
                   <p className="text-xs max-w-xs mx-auto">
-                    Switch to the "URL" tab and check "Save connection" to store profiles here.
+                    Switch to the "URL / File" tab and check "Save connection" to store profiles here.
                   </p>
                 </div>
               )}
@@ -197,15 +246,18 @@ export function ConnectionModal({ open, onOpenChange }: ConnectionModalProps) {
             <div className="space-y-3.5">
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-foreground">
-                  PostgreSQL URI
+                  Connection URI or File Path
                 </label>
                 <Input
                   value={rawUrl}
                   onChange={(e) => setRawUrl(e.target.value)}
-                  placeholder="postgres://user:password@localhost:5432/dbname?sslmode=disable"
+                  placeholder="postgres://..., mysql://..., sqlite:///path/to/db, or /path/to/app.db"
                   className="font-mono text-xs h-10"
                   required
                 />
+                <p className="text-[11px] text-muted-foreground">
+                  Supports PostgreSQL (<code className="text-primary font-mono">postgres://</code>), MySQL (<code className="text-primary font-mono">mysql://</code>), or SQLite (<code className="text-primary font-mono">sqlite:///</code> or direct <code className="text-primary font-mono">.db</code> path).
+                </p>
               </div>
 
                <div className="rounded-lg border border-border bg-muted/20 p-3.5 space-y-2.5">
@@ -225,7 +277,7 @@ export function ConnectionModal({ open, onOpenChange }: ConnectionModalProps) {
                     <Input
                       value={profileName}
                       onChange={(e) => setProfileName(e.target.value)}
-                      placeholder="e.g. Local Docker, Neon Dev, Staging DB"
+                      placeholder="e.g. Local Postgres, Staging MySQL, SQLite App DB"
                       className="text-sm h-9"
                       required={shouldSave}
                     />
@@ -236,93 +288,159 @@ export function ConnectionModal({ open, onOpenChange }: ConnectionModalProps) {
           )}
 
            {mode === "fields" && (
-            <div className="grid grid-cols-2 gap-3.5 text-sm">
-              <div className="col-span-2 sm:col-span-1 space-y-1.5">
-                <label className="font-medium text-muted-foreground">Host</label>
-                <Input
-                  value={config.Host}
-                  onChange={(e) =>
-                    setConfig(new db.Config({ ...config, Host: e.target.value }))
-                  }
-                  placeholder="localhost"
-                  className="h-10 text-sm"
-                  required
-                />
-              </div>
-              <div className="col-span-2 sm:col-span-1 space-y-1.5">
-                <label className="font-medium text-muted-foreground">Port</label>
-                <Input
-                  type="number"
-                  value={config.Port || ""}
-                  onChange={(e) =>
-                    setConfig(
-                      new db.Config({
-                        ...config,
-                        Port: parseInt(e.target.value, 10) || 5432,
-                      })
-                    )
-                  }
-                  placeholder="5432"
-                  className="h-10 text-sm"
-                  required
-                />
-              </div>
-              <div className="col-span-2 sm:col-span-1 space-y-1.5">
-                <label className="font-medium text-muted-foreground">Database</label>
-                <Input
-                  value={config.Database}
-                  onChange={(e) =>
-                    setConfig(
-                      new db.Config({ ...config, Database: e.target.value })
-                    )
-                  }
-                  placeholder="postgres"
-                  className="h-10 text-sm"
-                  required
-                />
-              </div>
-              <div className="col-span-2 sm:col-span-1 space-y-1.5">
-                <label className="font-medium text-muted-foreground">Username</label>
-                <Input
-                  value={config.User}
-                  onChange={(e) =>
-                    setConfig(new db.Config({ ...config, User: e.target.value }))
-                  }
-                  placeholder="postgres"
-                  className="h-10 text-sm"
-                  required
-                />
-              </div>
-              <div className="col-span-2 space-y-1.5">
-                <label className="font-medium text-muted-foreground">Password</label>
-                <Input
-                  type="password"
-                  value={config.Password}
-                  onChange={(e) =>
-                    setConfig(
-                      new db.Config({ ...config, Password: e.target.value })
-                    )
-                  }
-                  placeholder="••••••••"
-                  className="h-10 text-sm"
-                />
-              </div>
-              <div className="col-span-2 space-y-1.5">
-                <label className="font-medium text-muted-foreground">SSL Mode</label>
-                <select
-                  value={config.SSLMode}
-                  onChange={(e) =>
-                    setConfig(
-                      new db.Config({ ...config, SSLMode: e.target.value })
-                    )
-                  }
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
+            <div className="space-y-3.5">
+               <div className="flex rounded-lg border border-border p-1 bg-muted/30 text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => handleDriverChange("postgres")}
+                  className={`flex-1 py-1.5 rounded-md transition-colors flex items-center justify-center gap-1.5 ${
+                    selectedDriver === "postgres"
+                      ? "bg-primary text-primary-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
                 >
-                  <option value="disable">disable</option>
-                  <option value="require">require</option>
-                  <option value="prefer">prefer</option>
-                  <option value="verify-full">verify-full</option>
-                </select>
+                  <Database className="h-3.5 w-3.5" />
+                  PostgreSQL
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDriverChange("mysql")}
+                  className={`flex-1 py-1.5 rounded-md transition-colors flex items-center justify-center gap-1.5 ${
+                    selectedDriver === "mysql"
+                      ? "bg-primary text-primary-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Layers className="h-3.5 w-3.5" />
+                  MySQL
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDriverChange("sqlite")}
+                  className={`flex-1 py-1.5 rounded-md transition-colors flex items-center justify-center gap-1.5 ${
+                    selectedDriver === "sqlite"
+                      ? "bg-primary text-primary-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <FileCode className="h-3.5 w-3.5" />
+                  SQLite
+                </button>
+              </div>
+
+              {/* SQLite Specific Form */}
+              {selectedDriver === "sqlite" ? (
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-foreground">
+                    SQLite Database File Path
+                  </label>
+                  <Input
+                    value={sqlitePath}
+                    onChange={(e) => setSqlitePath(e.target.value)}
+                    placeholder="/path/to/database.db or /home/user/app.sqlite"
+                    className="font-mono text-xs h-10"
+                    required
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Enter the absolute path to your local SQLite (<code className="text-primary font-mono">.db</code>, <code className="text-primary font-mono">.sqlite</code>, <code className="text-primary font-mono">.sqlite3</code>) database file.
+                  </p>
+                </div>
+              ) : (
+                 <div className="grid grid-cols-2 gap-3.5 text-sm">
+                  <div className="col-span-2 sm:col-span-1 space-y-1.5">
+                    <label className="font-medium text-muted-foreground">Host</label>
+                    <Input
+                      value={host}
+                      onChange={(e) => setHost(e.target.value)}
+                      placeholder="localhost"
+                      className="h-10 text-sm"
+                      required
+                    />
+                  </div>
+                  <div className="col-span-2 sm:col-span-1 space-y-1.5">
+                    <label className="font-medium text-muted-foreground">Port</label>
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={port}
+                      onChange={(e) => setPort(e.target.value.replace(/\D/g, ""))}
+                      placeholder={selectedDriver === "mysql" ? "3306" : "5432"}
+                      className="h-10 text-sm"
+                      required
+                    />
+                  </div>
+                  <div className="col-span-2 sm:col-span-1 space-y-1.5">
+                    <label className="font-medium text-muted-foreground">Database</label>
+                    <Input
+                      value={database}
+                      onChange={(e) => setDatabase(e.target.value)}
+                      placeholder={selectedDriver === "mysql" ? "mydb" : "postgres"}
+                      className="h-10 text-sm"
+                      required
+                    />
+                  </div>
+                  <div className="col-span-2 sm:col-span-1 space-y-1.5">
+                    <label className="font-medium text-muted-foreground">Username</label>
+                    <Input
+                      value={user}
+                      onChange={(e) => setUser(e.target.value)}
+                      placeholder={selectedDriver === "mysql" ? "root" : "postgres"}
+                      className="h-10 text-sm"
+                      required
+                    />
+                  </div>
+                  <div className="col-span-2 space-y-1.5">
+                    <label className="font-medium text-muted-foreground">Password</label>
+                    <Input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="h-10 text-sm"
+                    />
+                  </div>
+                  {selectedDriver === "postgres" && (
+                    <div className="col-span-2 space-y-1.5">
+                      <label className="font-medium text-muted-foreground">SSL Mode</label>
+                      <select
+                        value={sslMode}
+                        onChange={(e) => setSslMode(e.target.value)}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
+                      >
+                        <option value="disable">disable</option>
+                        <option value="require">require</option>
+                        <option value="prefer">prefer</option>
+                        <option value="verify-full">verify-full</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+              )}
+
+               <div className="rounded-lg border border-border bg-muted/20 p-3.5 space-y-2.5">
+                <label className="flex items-center space-x-2.5 cursor-pointer text-sm font-medium">
+                  <input
+                    type="checkbox"
+                    checked={shouldSave}
+                    onChange={(e) => setShouldSave(e.target.checked)}
+                    className="rounded border-input text-primary focus:ring-primary h-4 w-4"
+                  />
+                  <span className="text-foreground">
+                    Save this connection profile
+                  </span>
+                </label>
+                {shouldSave && (
+                  <div className="pt-1">
+                    <Input
+                      value={profileName}
+                      onChange={(e) => setProfileName(e.target.value)}
+                      placeholder="e.g. Local SQLite DB, Dev Postgres"
+                      className="text-sm h-9"
+                      required={shouldSave}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           )}

@@ -43,7 +43,7 @@ func TestConnectionManager(t *testing.T) {
 			DynamicFakeQuerier: &DynamicFakeQuerier{},
 		}
       
-		fakeConnector := func(ctx context.Context, dsn string)(db.Client, error){
+		fakeConnector := func(ctx context.Context, cfg db.Config) (db.Client, error) {
 			return fakeClient, nil
 		}
 
@@ -69,13 +69,12 @@ func TestConnectionManager(t *testing.T) {
 
 		callCount := 0
 
-		fakeConnector := func(ctx context.Context, dsn string)(db.Client, error){
-			 callCount++
-
-			 if callCount == 1 {
+		fakeConnector := func(ctx context.Context, cfg db.Config) (db.Client, error) {
+			callCount++
+			if callCount == 1 {
 				return firstClient, nil
-			 }
-			 return secondClient, nil
+			}
+			return secondClient, nil
 		}
 
 		manager := db.NewConnectionManager(fakeConnector)

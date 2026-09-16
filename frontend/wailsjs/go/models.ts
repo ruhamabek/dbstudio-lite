@@ -19,12 +19,14 @@ export namespace db {
 	    }
 	}
 	export class Config {
-	    Host: string;
-	    Port: number;
-	    User: string;
-	    Password: string;
-	    Database: string;
-	    SSLMode: string;
+	    driver: string;
+	    host: string;
+	    port: number;
+	    user: string;
+	    password: string;
+	    database: string;
+	    sslMode: string;
+	    filePath: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Config(source);
@@ -32,12 +34,14 @@ export namespace db {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.Host = source["Host"];
-	        this.Port = source["Port"];
-	        this.User = source["User"];
-	        this.Password = source["Password"];
-	        this.Database = source["Database"];
-	        this.SSLMode = source["SSLMode"];
+	        this.driver = source["driver"];
+	        this.host = source["host"];
+	        this.port = source["port"];
+	        this.user = source["user"];
+	        this.password = source["password"];
+	        this.database = source["database"];
+	        this.sslMode = source["sslMode"];
+	        this.filePath = source["filePath"];
 	    }
 	}
 	export class QueryResult {

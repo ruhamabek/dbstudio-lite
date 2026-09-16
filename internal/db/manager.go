@@ -15,13 +15,13 @@ type Client interface {
 	Close() error
 }
 
-type Connector func(ctx context.Context, dsn string) (Client, error)
+type Connector func(ctx context.Context, cfg Config) (Client, error)
 
 type ConnectionManager struct {
 	mu        sync.RWMutex
 	connector Connector
 	client    Client
-	inspector *Inspector
+	inspector SchemaInspector
 	runner    *Runner
 }
 
@@ -32,7 +32,7 @@ func NewConnectionManager(connector Connector) *ConnectionManager {
 }
 
 
-func (m *ConnectionManager) Inspector() (*Inspector, error) {
+func (m *ConnectionManager) Inspector() (SchemaInspector, error) { 
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	if m.client == nil {
@@ -65,16 +65,15 @@ func (m *ConnectionManager) Connect(ctx context.Context, cfg Config) error{
 		m.runner = nil
 	}
 
-	dsn := cfg.ConnectionString()
-
-	client, err := m.connector(ctx, dsn)
+ 
+	client, err := m.connector(ctx, cfg)
 
 	if err != nil {
 		return fmt.Errorf("Connection Failed: %v", err)
 	}
 
 	m.client = client
-	m.inspector = NewInspector(client)
+	m.inspector = NewInspector(cfg.Driver, client)
 	m.runner = NewRunner(client)
 
 	return nil
