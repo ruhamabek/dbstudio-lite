@@ -1,14 +1,25 @@
-package db_test
+package service_test
 
 import (
+	"app-dev/internal/domain"
+	"app-dev/internal/service"
 	"context"
 	"errors"
 	"testing"
-
-	"app-dev/internal/db"
 )
 
- type FakeClient struct {
+type DynamicFakeQuerier struct {
+	recordedSQL  string
+	recordedArgs []any
+}
+
+func (q *DynamicFakeQuerier) Query(ctx context.Context, sql string, args ...any) (domain.Rows, error) {
+	q.recordedSQL = sql
+	q.recordedArgs = args
+	return nil, nil
+}
+
+type FakeClient struct {
 	*DynamicFakeQuerier
 	pingErr   error
 	closeErr  error
@@ -30,11 +41,11 @@ func TestConnectionManager(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("returns ErrNotConnected when no connection is active", func(t *testing.T) {
-		manager := db.NewConnectionManager(nil)
+		manager := service.NewConnectionManager(nil)
 
 		_, err := manager.Inspector()
-		if !errors.Is(err, db.ErrNotConnected) {
-			t.Errorf("got %v, want %v", err, db.ErrNotConnected)
+		if !errors.Is(err, service.ErrNotConnected) {
+			t.Errorf("got %v, want %v", err, service.ErrNotConnected)
 		}
 	})
 
@@ -42,17 +53,18 @@ func TestConnectionManager(t *testing.T) {
 		fakeClient := &FakeClient{
 			DynamicFakeQuerier: &DynamicFakeQuerier{},
 		}
-      
-		fakeConnector := func(ctx context.Context, cfg db.Config) (db.Client, error) {
+
+		fakeConnector := func(ctx context.Context, cfg domain.Config) (domain.Client, error) {
 			return fakeClient, nil
 		}
 
-		manager := db.NewConnectionManager(fakeConnector)
+		manager := service.NewConnectionManager(fakeConnector)
+		cfg := domain.Config{Host: "localhost", Database: "testdb"}
 
-		cfg := db.Config{Host: "localhost", Database: "testdb"}
-
-       
 		err := manager.Connect(ctx, cfg)
+		if err != nil {
+			t.Fatalf("unexpected connect error: %v", err)
+		}
 
 		inspector, err := manager.Inspector()
 		if err != nil {
@@ -68,8 +80,7 @@ func TestConnectionManager(t *testing.T) {
 		secondClient := &FakeClient{DynamicFakeQuerier: &DynamicFakeQuerier{}}
 
 		callCount := 0
-
-		fakeConnector := func(ctx context.Context, cfg db.Config) (db.Client, error) {
+		fakeConnector := func(ctx context.Context, cfg domain.Config) (domain.Client, error) {
 			callCount++
 			if callCount == 1 {
 				return firstClient, nil
@@ -77,16 +88,15 @@ func TestConnectionManager(t *testing.T) {
 			return secondClient, nil
 		}
 
-		manager := db.NewConnectionManager(fakeConnector)
+		manager := service.NewConnectionManager(fakeConnector)
 
-		_= manager.Connect(ctx, db.Config{Host: "db1"})
-		if firstClient.isClosed{
-			t.Error("First client should still be open")
+		_ = manager.Connect(ctx, domain.Config{Host: "db1"})
+		if firstClient.isClosed {
+			t.Error("first client should still be open")
 		}
 
-		_= manager.Connect(ctx, db.Config{Host: "db2"})
-
-			if !firstClient.isClosed {
+		_ = manager.Connect(ctx, domain.Config{Host: "db2"})
+		if !firstClient.isClosed {
 			t.Error("first client should have been closed when second connection was opened")
 		}
 	})

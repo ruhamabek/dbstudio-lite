@@ -1,12 +1,11 @@
-package db
+package domain
 
 import (
- 	"fmt"
+	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
 )
-
 
 type DriverType string
 
@@ -27,9 +26,7 @@ type Config struct {
 	FilePath string     `json:"filePath"`
 }
 
-
-
-func (c *Config) ConnectionString() string{
+func (c *Config) ConnectionString() string {
 	if c.Driver == DriverSQLite || c.FilePath != "" {
 		return c.FilePath
 	}
@@ -57,23 +54,17 @@ func (c *Config) ConnectionString() string{
 	}
 
 	var userInfo *url.Userinfo
-
-	if c.Password != ""{
-      userInfo = url.UserPassword(c.User, c.Password)
+	if c.Password != "" {
+		userInfo = url.UserPassword(c.User, c.Password)
 	} else if c.User != "" {
-      userInfo = url.User(c.User)
+		userInfo = url.User(c.User)
 	}
-
-	sslMode := c.SSLMode
 
 	query := url.Values{}
-	query.Set("sslmode", sslMode)
-
-	if sslMode != ""{
-		sslMode = "prefer"
+	if c.SSLMode != "" {
+		query.Set("sslmode", c.SSLMode)
 	}
 
-	
 	u := url.URL{
 		Scheme:   "postgres",
 		User:     userInfo,
@@ -86,7 +77,7 @@ func (c *Config) ConnectionString() string{
 }
 
 func ParseURL(rawUrl string) (Config, error) {
- 	if !strings.Contains(rawUrl, "://") && (strings.HasPrefix(rawUrl, "/") || strings.HasSuffix(rawUrl, ".db") || strings.HasSuffix(rawUrl, ".sqlite") || strings.HasSuffix(rawUrl, ".sqlite3")) {
+	if !strings.Contains(rawUrl, "://") && (strings.HasPrefix(rawUrl, "/") || strings.HasSuffix(rawUrl, ".db") || strings.HasSuffix(rawUrl, ".sqlite") || strings.HasSuffix(rawUrl, ".sqlite3")) {
 		return Config{
 			Driver:   DriverSQLite,
 			FilePath: rawUrl,
@@ -98,7 +89,7 @@ func ParseURL(rawUrl string) (Config, error) {
 		return Config{}, fmt.Errorf("failed to parse url: %v", err)
 	}
 
- 	if u.Scheme == "sqlite" || u.Scheme == "file" {
+	if u.Scheme == "sqlite" || u.Scheme == "file" {
 		filePath := strings.TrimPrefix(rawUrl, u.Scheme+"://")
 		return Config{
 			Driver:   DriverSQLite,
@@ -106,7 +97,7 @@ func ParseURL(rawUrl string) (Config, error) {
 		}, nil
 	}
 
- 	if u.Scheme == "mysql" {
+	if u.Scheme == "mysql" {
 		cfg := Config{
 			Driver: DriverMySQL,
 			Host:   u.Hostname(),
@@ -133,7 +124,7 @@ func ParseURL(rawUrl string) (Config, error) {
 		return cfg, nil
 	}
 
- 	if u.Scheme == "postgres" || u.Scheme == "postgresql" {
+	if u.Scheme == "postgres" || u.Scheme == "postgresql" {
 		cfg := Config{
 			Driver: DriverPostgres,
 			Host:   u.Hostname(),

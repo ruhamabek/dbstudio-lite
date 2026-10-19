@@ -1,6 +1,7 @@
-package db
+package store
 
 import (
+	"app-dev/internal/domain"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,43 +11,30 @@ import (
 	"time"
 )
 
-type SavedConnection struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	URL       string    `json:"url"`
-	CreatedAt time.Time `json:"createdAt"`
-}
-
-type ConnectionStore interface {
-	List() ([]SavedConnection, error)
-	Save(conn SavedConnection) (SavedConnection, error)
-	Delete(id string) error
-}
-
- type FileConnectionStore struct {
+type FileConnectionStore struct {
 	mu       sync.RWMutex
 	filePath string
 }
 
- func NewFileConnectionStore(filePath string) *FileConnectionStore {
+func NewFileConnectionStore(filePath string) *FileConnectionStore {
 	return &FileConnectionStore{
 		filePath: filePath,
 	}
 }
 
-func (s *FileConnectionStore) List() ([]SavedConnection, error) {
+func (s *FileConnectionStore) List() ([]domain.SavedConnection, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	data, err := os.ReadFile(s.filePath)
 	if errors.Is(err, os.ErrNotExist) || len(data) == 0 {
-		return []SavedConnection{}, nil
+		return []domain.SavedConnection{}, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to read connections file: %w", err)
 	}
 
-	var conns []SavedConnection
+	var conns []domain.SavedConnection
 	if err := json.Unmarshal(data, &conns); err != nil {
 		return nil, fmt.Errorf("failed to parse connections file: %w", err)
 	}
@@ -54,14 +42,13 @@ func (s *FileConnectionStore) List() ([]SavedConnection, error) {
 	return conns, nil
 }
 
-
-func (s *FileConnectionStore) Save(conn SavedConnection) (SavedConnection, error) {
+func (s *FileConnectionStore) Save(conn domain.SavedConnection) (domain.SavedConnection, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	conns, err := s.readAllUnsafe()
 	if err != nil {
-		return SavedConnection{}, err
+		return domain.SavedConnection{}, err
 	}
 
 	if conn.ID == "" {
@@ -83,12 +70,11 @@ func (s *FileConnectionStore) Save(conn SavedConnection) (SavedConnection, error
 	}
 
 	if err := s.writeAllUnsafe(conns); err != nil {
-		return SavedConnection{}, err
+		return domain.SavedConnection{}, err
 	}
 
 	return conn, nil
 }
-
 
 func (s *FileConnectionStore) Delete(id string) error {
 	s.mu.Lock()
@@ -99,7 +85,7 @@ func (s *FileConnectionStore) Delete(id string) error {
 		return err
 	}
 
-	filtered := make([]SavedConnection, 0, len(conns))
+	filtered := make([]domain.SavedConnection, 0, len(conns))
 	for _, c := range conns {
 		if c.ID != id {
 			filtered = append(filtered, c)
@@ -109,23 +95,23 @@ func (s *FileConnectionStore) Delete(id string) error {
 	return s.writeAllUnsafe(filtered)
 }
 
-func (s *FileConnectionStore) readAllUnsafe() ([]SavedConnection, error) {
+func (s *FileConnectionStore) readAllUnsafe() ([]domain.SavedConnection, error) {
 	data, err := os.ReadFile(s.filePath)
 	if errors.Is(err, os.ErrNotExist) || len(data) == 0 {
-		return []SavedConnection{}, nil
+		return []domain.SavedConnection{}, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to read connections file: %w", err)
 	}
 
-	var conns []SavedConnection
+	var conns []domain.SavedConnection
 	if err := json.Unmarshal(data, &conns); err != nil {
 		return nil, fmt.Errorf("failed to parse connections file: %w", err)
 	}
 	return conns, nil
 }
 
-func (s *FileConnectionStore) writeAllUnsafe(conns []SavedConnection) error {
+func (s *FileConnectionStore) writeAllUnsafe(conns []domain.SavedConnection) error {
 	dir := filepath.Dir(s.filePath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)

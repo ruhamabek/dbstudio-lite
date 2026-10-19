@@ -74,20 +74,25 @@ dbstudio-lite/
 ├── app.go                      # Wails IPC application bindings and service layer
 ├── main.go                     # Desktop application entrypoint and options
 ├── internal/
-│   └── db/                     # Core database package (100% test-driven)
-│       ├── config.go           # DSN building and multi-engine URL parsing
-│       ├── config_test.go      # Configuration and URL parsing tests
-│       ├── drivers.go          # Multi-driver connector dispatcher
-│       ├── generic_sql.go      # database/sql adapter for MySQL and SQLite
-│       ├── inspector.go        # PostgreSQL, MySQL, and SQLite schema inspectors
-│       ├── inspector_test.go   # Multi-engine schema inspection unit tests
-│       ├── runner.go           # Dynamic tabular query execution and timing
-│       ├── runner_test.go      # Query execution unit tests
-│       ├── manager.go          # Thread-safe connection lifecycle management
-│       ├── manager_test.go     # Connection management unit tests
-│       ├── store.go            # Connection profile persistence implementation
-│       ├── store_test.go       # Storage unit tests
-│       └── postgres.go         # pgx driver adapter implementation
+│   ├── domain/                 # Pure domain models, config, and core interfaces (zero dependencies)
+│   │   ├── config.go           # DSN building and multi-engine URL parsing
+│   │   ├── config_test.go      # Configuration and URL parsing tests
+│   │   └── models.go           # Table, Column, QueryResult, and interface definitions
+│   ├── driver/                 # Driver adapters and polymorphic schema inspectors
+│   │   ├── postgres/           # pgx adapter and PostgreSQL inspector
+│   │   ├── mysql/              # database/sql MySQL adapter and inspector
+│   │   ├── sqlite/             # database/sql SQLite adapter and inspector
+│   │   ├── sqlcommon/          # Reusable database/sql row and client wrappers
+│   │   ├── registry.go         # Multi-driver connector dispatcher and factory
+│   │   └── inspector_test.go   # Schema inspection unit tests across all engines
+│   ├── service/                # Application orchestration
+│   │   ├── manager.go          # Thread-safe connection lifecycle management (sync.RWMutex)
+│   │   ├── manager_test.go     # Connection management unit tests
+│   │   ├── runner.go           # Dynamic tabular query execution and latency timing
+│   │   └── runner_test.go      # Query execution unit tests
+│   └── store/                  # Profile persistence
+│       ├── file_store.go       # Connection profile storage (0600 file permissions)
+│       └── file_store_test.go  # Store unit tests
 ├── frontend/
 │   ├── src/
 │   │   ├── app/                # Next.js App Router (layout, page, globals.css)

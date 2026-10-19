@@ -1,41 +1,39 @@
 package main
 
 import (
-	"app-dev/internal/db"
+	"app-dev/internal/domain"
+	"app-dev/internal/service"
 	"context"
 	"fmt"
 )
 
-
 type App struct {
 	ctx     context.Context
-	manager *db.ConnectionManager
-	store   db.ConnectionStore
+	manager *service.ConnectionManager
+	store   domain.ConnectionStore
 }
 
-func NewApp(manager *db.ConnectionManager, store db.ConnectionStore) *App {
+func NewApp(manager *service.ConnectionManager, store domain.ConnectionStore) *App {
 	return &App{
 		manager: manager,
 		store:   store,
 	}
 }
 
- 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 }
-
 
 func (a *App) Greet(name string) string {
 	return fmt.Sprintf("Hello %s, It's show time!", name)
 }
 
-func (a *App) Connect(cfg db.Config) error {
+func (a *App) Connect(cfg domain.Config) error {
 	return a.manager.Connect(a.ctx, cfg)
 }
 
 func (a *App) ConnectWithURL(rawURL string) error {
-	cfg, err := db.ParseURL(rawURL)
+	cfg, err := domain.ParseURL(rawURL)
 	if err != nil {
 		return err
 	}
@@ -50,7 +48,7 @@ func (a *App) Ping() error {
 	return a.manager.Ping(a.ctx)
 }
 
-func (a *App) GetTables() ([]db.Table, error) {
+func (a *App) GetTables() ([]domain.Table, error) {
 	inspector, err := a.manager.Inspector()
 	if err != nil {
 		return nil, err
@@ -58,14 +56,13 @@ func (a *App) GetTables() ([]db.Table, error) {
 	return inspector.ListTables(a.ctx)
 }
 
-func (a *App) GetColumns(schema, table string) ([]db.Column, error) {
+func (a *App) GetColumns(schema, table string) ([]domain.Column, error) {
 	inspector, err := a.manager.Inspector()
 	if err != nil {
 		return nil, err
 	}
 	return inspector.GetColumns(a.ctx, schema, table)
 }
-
 
 func (a *App) GetPrimaryKeys(schema, table string) ([]string, error) {
 	inspector, err := a.manager.Inspector()
@@ -75,7 +72,7 @@ func (a *App) GetPrimaryKeys(schema, table string) ([]string, error) {
 	return inspector.GetPrimaryKeys(a.ctx, schema, table)
 }
 
-func (a *App) ExecuteQuery(sql string) (*db.QueryResult, error) {
+func (a *App) ExecuteQuery(sql string) (*domain.QueryResult, error) {
 	runner, err := a.manager.Runner()
 	if err != nil {
 		return nil, err
@@ -83,16 +80,16 @@ func (a *App) ExecuteQuery(sql string) (*db.QueryResult, error) {
 	return runner.Execute(a.ctx, sql)
 }
 
-func (a *App) GetSavedConnections() ([]db.SavedConnection, error) {
+func (a *App) GetSavedConnections() ([]domain.SavedConnection, error) {
 	if a.store == nil {
-		return []db.SavedConnection{}, nil
+		return []domain.SavedConnection{}, nil
 	}
 	return a.store.List()
 }
 
-func (a *App) SaveConnection(conn db.SavedConnection) (db.SavedConnection, error) {
+func (a *App) SaveConnection(conn domain.SavedConnection) (domain.SavedConnection, error) {
 	if a.store == nil {
-		return db.SavedConnection{}, fmt.Errorf("no store configured")
+		return domain.SavedConnection{}, fmt.Errorf("no store configured")
 	}
 	return a.store.Save(conn)
 }

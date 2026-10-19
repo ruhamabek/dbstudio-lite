@@ -1,7 +1,9 @@
 package main
 
 import (
-	"app-dev/internal/db"
+	"app-dev/internal/driver"
+	"app-dev/internal/service"
+	"app-dev/internal/store"
 	"embed"
 	"os"
 	"path/filepath"
@@ -20,12 +22,12 @@ func main() {
 		configDir = "."
 	}
 	storePath := filepath.Join(configDir, "dbstudio-lite", "connections.json")
-	store := db.NewFileConnectionStore(storePath)
+	connStore := store.NewFileConnectionStore(storePath)
 
-    manager := db.NewConnectionManager(db.NewMultiDriverConnector())
-	app := NewApp(manager, store)
+	manager := service.NewConnectionManager(driver.NewMultiDriverConnector())
+	app := NewApp(manager, connStore)
 
- 	err = wails.Run(&options.App{
+	err = wails.Run(&options.App{
 		Title:  "DBStudio Lite",
 		Width:  1024,
 		Height: 768,

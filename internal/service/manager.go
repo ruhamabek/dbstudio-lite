@@ -1,6 +1,8 @@
-package db
+package service
 
 import (
+	"app-dev/internal/domain"
+	"app-dev/internal/driver"
 	"context"
 	"errors"
 	"fmt"
@@ -9,30 +11,21 @@ import (
 
 var ErrNotConnected = errors.New("no active database connection")
 
-type Client interface {
-	Querier
-	Ping(ctx context.Context) error
-	Close() error
-}
-
-type Connector func(ctx context.Context, cfg Config) (Client, error)
-
 type ConnectionManager struct {
 	mu        sync.RWMutex
-	connector Connector
-	client    Client
-	inspector SchemaInspector
+	connector domain.Connector
+	client    domain.Client
+	inspector domain.SchemaInspector
 	runner    *Runner
 }
 
-func NewConnectionManager(connector Connector) *ConnectionManager {
+func NewConnectionManager(connector domain.Connector) *ConnectionManager {
 	return &ConnectionManager{
 		connector: connector,
 	}
 }
 
-
-func (m *ConnectionManager) Inspector() (SchemaInspector, error) { 
+func (m *ConnectionManager) Inspector() (domain.SchemaInspector, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	if m.client == nil {
@@ -50,12 +43,12 @@ func (m *ConnectionManager) Runner() (*Runner, error) {
 	return m.runner, nil
 }
 
-func (m *ConnectionManager) Connect(ctx context.Context, cfg Config) error{
+func (m *ConnectionManager) Connect(ctx context.Context, cfg domain.Config) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if m.connector == nil {
-		return errors.New("No connector configured")
+		return errors.New("no connector configured")
 	}
 
 	if m.client != nil {
@@ -65,15 +58,13 @@ func (m *ConnectionManager) Connect(ctx context.Context, cfg Config) error{
 		m.runner = nil
 	}
 
- 
 	client, err := m.connector(ctx, cfg)
-
 	if err != nil {
-		return fmt.Errorf("Connection Failed: %v", err)
+		return fmt.Errorf("connection failed: %w", err)
 	}
 
 	m.client = client
-	m.inspector = NewInspector(cfg.Driver, client)
+	m.inspector = driver.NewInspector(cfg.Driver, client)
 	m.runner = NewRunner(client)
 
 	return nil
@@ -88,20 +79,20 @@ func (m *ConnectionManager) Disconnect() error {
 	}
 
 	err := m.client.Close()
-	m.client = nil 
-	m.inspector = nil 
-	m.runner =nil 
+	m.client = nil
+	m.inspector = nil
+	m.runner = nil
 
 	if err != nil {
-		return fmt.Errorf("failed to close connection: %v", err)
+		return fmt.Errorf("failed to close connection: %w", err)
 	}
 
 	return nil
 }
 
 func (m *ConnectionManager) Ping(ctx context.Context) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 
 	if m.client == nil {
 		return ErrNotConnected
