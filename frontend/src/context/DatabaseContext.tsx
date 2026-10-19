@@ -14,7 +14,7 @@ import {
   SaveConnection,
   DeleteConnection,
 } from "@wailsjs/go/main/App"
-import { db } from "@wailsjs/go/models"
+import { domain as db } from "@wailsjs/go/models"
 
 export type ActiveTab = "data" | "structure" | "console"
 

@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useDatabase } from "@/context/DatabaseContext"
-import { db } from "@wailsjs/go/models"
+import { domain as db } from "@wailsjs/go/models"
 import {
   AlertCircle,
   Database,

@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { db } from "@wailsjs/go/models"
+import { domain as db } from "@wailsjs/go/models"
 import { Clock, Hash } from "lucide-react"
 
 interface DataViewerProps {

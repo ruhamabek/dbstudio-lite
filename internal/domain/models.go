@@ -45,16 +45,16 @@ type ConnectionStore interface {
 
 // Table represents a database table in a schema.
 type Table struct {
-	Schema string `json:"schema"`
-	Name   string `json:"name"`
+	Schema string
+	Name   string
 }
 
 // Column represents column metadata.
 type Column struct {
-	Name       string  `json:"name"`
-	DataType   string  `json:"dataType"`
-	IsNullable bool    `json:"isNullable"`
-	DefaultVal *string `json:"defaultVal,omitempty"`
+	Name       string
+	DataType   string
+	IsNullable bool
+	DefaultVal *string
 }
 
 // QueryResult represents the tabular output of a SQL query.

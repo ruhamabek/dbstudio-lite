@@ -1,4 +1,4 @@
-export namespace db {
+export namespace domain {
 	
 	export class Column {
 	    Name: string;
