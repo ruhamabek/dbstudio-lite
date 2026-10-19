@@ -1,108 +1,56 @@
 "use client"
 
-import React, { useState } from "react"
-import { Table, Terminal, Link, Bookmark } from "lucide-react"
+import { useRef, useState, type KeyboardEvent } from "react"
+import Image from "next/image"
+import { Table2, SquareTerminal, Cable, Bookmark, ArrowUpRight } from "lucide-react"
 
-const TABS = [
-  {
-    id: "data",
-    label: "Data Explorer",
-    icon: Table,
-    title: "Browse & Format Table Records",
-    description:
-      "Explore rows with intelligent formatting for NULL values, JSON blobs, booleans, and primary key badges. Real-time telemetry shows row counts and query latency.",
-    image: "/screenshots/2.jpg",
-  },
-  {
-    id: "console",
-    label: "SQL Console",
-    icon: Terminal,
-    title: "Full-Featured Monaco SQL Editor",
-    description:
-      "Syntax highlighting, autocompletion, draggable resizable panes, and keyboard shortcuts (Cmd+Enter). Bundled 100% offline with zero CDN dependencies.",
-    image: "/screenshots/3.jpg",
-  },
-  {
-    id: "url",
-    label: "URL & Parameters",
-    icon: Link,
-    title: "Flexible Connection Modes",
-    description:
-      "Connect instantly with a standard PostgreSQL URI or enter discrete parameters. One-click checkbox to store profiles locally.",
-    image: "/screenshots/4.png",
-  },
-  {
-    id: "saved",
-    label: "Saved Profiles",
-    icon: Bookmark,
-    title: "1-Click Saved Profiles",
-    description:
-      "Stored securely with 0600 file permissions on your local disk. Masked passwords in previews and instant one-click connection.",
-    image: "/screenshots/1.jpg",
-  },
+const VIEWS = [
+  { id: "data", label: "Explore data", icon: Table2, title: "Less digging. More understanding.", description: "Browse tables, inspect rows, and make sense of your data in one focused view.", image: "/screenshots/2.jpg", alt: "DBStudio Lite data explorer showing database tables in the sidebar and course records in a data grid" },
+  { id: "sql", label: "Write SQL", icon: SquareTerminal, title: "From a question to a query.", description: "A familiar Monaco editor, SQL highlighting, and query results right beside your work.", image: "/screenshots/3.jpg", alt: "DBStudio Lite SQL console with the Monaco query editor and query results" },
+  { id: "connect", label: "Connect", icon: Cable, title: "Your next connection, made simple.", description: "Use a connection URI or enter your database details, then save a profile for next time.", image: "/screenshots/4.png", alt: "DBStudio Lite connection dialog with connection URL and individual database parameter fields" },
+  { id: "profiles", label: "Save profiles", icon: Bookmark, title: "Pick up where you left off.", description: "Keep connection profiles on your machine and reconnect without entering everything again.", image: "/screenshots/1.jpg", alt: "DBStudio Lite saved connection profiles, stored locally for quick reconnection" },
 ]
 
 export function PreviewShowcase() {
-  const [activeTab, setActiveTab] = useState(TABS[0].id)
-  const current = TABS.find((t) => t.id === activeTab) || TABS[0]
+  const [active, setActive] = useState(0)
+  const buttons = useRef<(HTMLButtonElement | null)[]>([])
+
+  function onKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    let next = index
+    if (event.key === "ArrowRight") next = (index + 1) % VIEWS.length
+    else if (event.key === "ArrowLeft") next = (index - 1 + VIEWS.length) % VIEWS.length
+    else if (event.key === "Home") next = 0
+    else if (event.key === "End") next = VIEWS.length - 1
+    else return
+    event.preventDefault()
+    setActive(next)
+    buttons.current[next]?.focus()
+  }
 
   return (
-    <section id="preview" className="py-20 border-t border-white/10 bg-[#09090b]">
-      <div className="mx-auto max-w-6xl px-6">
-         <div className="text-center max-w-2xl mx-auto mb-12">
-          <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-400">
-            Interface Preview
-          </h2>
-          <p className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Built for Developer Productivity.
-          </p>
-          <p className="mt-3 text-sm text-zinc-400">
-            A clean desktop interface built without visual noise, designed for fast inspection and execution.
-          </p>
-        </div>
-
-         <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
-          {TABS.map((tab) => {
-            const Icon = tab.icon
-            const isActive = tab.id === activeTab
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-semibold transition-all ${
-                  isActive
-                    ? "bg-white text-black shadow-md"
-                    : "border border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white"
-                }`}
-              >
-                <Icon className="h-4 w-4" />
-                <span>{tab.label}</span>
-              </button>
-            )
-          })}
-        </div>
-
-         <div className="rounded-2xl border border-white/10 bg-[#121215] p-3 md:p-6 shadow-2xl">
-          <div className="mb-4 flex flex-col md:flex-row md:items-center justify-between gap-2 px-2">
-            <div>
-              <h3 className="text-lg font-bold text-white">{current.title}</h3>
-              <p className="text-xs text-zinc-400">{current.description}</p>
-            </div>
-            <span className="text-[11px] font-mono text-zinc-500 shrink-0">
-              Active View: {current.label}
-            </span>
+    <section id="preview" className="preview-section" aria-label="Explore the DBStudio Lite workspace">
+      <div className="container">
+        <div className="preview-toolbar">
+          <div className="preview-tabs" role="tablist" aria-label="Workspace previews">
+            {VIEWS.map((view, index) => {
+              const Icon = view.icon
+              return <button key={view.id} id={`tab-${view.id}`} ref={(node) => { buttons.current[index] = node }} role="tab" aria-selected={active === index} aria-controls={`panel-${view.id}`} tabIndex={active === index ? 0 : -1} onKeyDown={(event) => onKeyDown(event, index)} onClick={() => setActive(index)}><Icon size={16} aria-hidden="true" />{view.label}</button>
+            })}
           </div>
-
-          <div className="overflow-hidden rounded-xl border border-white/10 bg-black">
-            <img
-              src={current.image}
-              alt={current.title}
-              className="w-full h-auto object-cover"
-              loading="lazy"
-            />
-          </div>
+          <span className="preview-version">A look inside · v0.1.0</span>
         </div>
+        {VIEWS.map((current, index) => (
+        <div key={current.id} id={`panel-${current.id}`} role="tabpanel" aria-labelledby={`tab-${current.id}`} tabIndex={0} hidden={active !== index} className="preview-panel">
+          <div className="app-window">
+            <div className="window-bar"><div className="window-dots" aria-hidden="true"><i /><i /><i /></div><span>DBStudio Lite</span><span className="window-local">Desktop workspace</span></div>
+            <a href={current.image} target="_blank" rel="noreferrer" className={`screenshot-link screenshot-${current.id}`} aria-label={`Open full-size screenshot: ${current.label}`}>
+              <Image src={current.image} alt={current.alt} width={1280} height={744} priority={index === 0} sizes="(max-width: 1200px) 92vw, 1120px" className="app-screenshot" />
+              <span className="expand-preview">View full size <ArrowUpRight size={14} aria-hidden="true" /></span>
+            </a>
+          </div>
+          <div className="preview-caption"><h2>{current.title}</h2><p>{current.description}</p></div>
+        </div>
+        ))}
       </div>
     </section>
   )

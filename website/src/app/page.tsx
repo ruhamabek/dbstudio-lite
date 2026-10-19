@@ -19,7 +19,7 @@ export default function HomePage() {
       priceCurrency: "USD",
     },
     description:
-      "A modular, lightweight cross-platform PostgreSQL desktop client built with Go, Next.js, and Wails v2.",
+      "A lightweight desktop workspace for PostgreSQL, MySQL, and SQLite. Explore data, inspect schemas, and write SQL.",
     downloadUrl: "https://github.com/ruhamabek/dbstudio-lite/releases/tag/v0.1.0",
     author: {
       "@type": "Person",
@@ -35,12 +35,15 @@ export default function HomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <div className="flex min-h-screen flex-col bg-[#09090b] text-[#fafafa]">
+      <div id="top">
+        <a className="skip-link" href="#main-content">Skip to content</a>
         <Navbar />
+        <main id="main-content">
          <Hero />
          <PreviewShowcase />
          <Features />
         <DownloadSection />
+        </main>
         <Footer />
       </div>
     </>

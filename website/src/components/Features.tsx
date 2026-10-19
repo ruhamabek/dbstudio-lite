@@ -1,87 +1,28 @@
-import React from "react"
-import {
-  Cpu,
-  ShieldCheck,
-  Code2,
-  Layers,
-  Lock,
-  Boxes,
-} from "lucide-react"
-
-const FEATURES = [
-  {
-    icon: Cpu,
-    title: "Lightweight Go Core",
-    description:
-      "Core database inspection and execution engine written in Go with 0.004s test suite latency and minimal RAM consumption.",
-  },
-  {
-    icon: Code2,
-    title: "Monaco SQL Console",
-    description:
-      "Visual Studio Code's editor engine bundled directly into the binary. Syntax highlighting, shortcuts, and draggable split panes.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Zero Telemetry",
-    description:
-      "Your database queries and schemas never touch the cloud. No analytics, no phone-home servers, and complete offline capability.",
-  },
-  {
-    icon: Layers,
-    title: "Schema & PK Inspector",
-    description:
-      "Inspect tables grouped by schema, discover composite primary keys, detect SQL constraints, and view column data types.",
-  },
-  {
-    icon: Lock,
-    title: "0600 Local Profile Security",
-    description:
-      "Saved connection profiles are stored on local disk under OS configuration directories using user-restricted 0600 file permissions.",
-  },
-  {
-    icon: Boxes,
-    title: "Native Desktop Binaries",
-    description:
-      "Packaged via Wails v2 utilizing the operating system's native webview. No bundled Chromium overhead, producing slim executables.",
-  },
-]
+import { ArrowUpRight, Check, Database, FileCode2, Github, KeyRound } from "lucide-react"
+import { REPOSITORY_URL } from "@/lib/releases"
 
 export function Features() {
   return (
-    <section id="features" className="py-24 border-t border-white/10 bg-[#09090b]">
-      <div className="mx-auto max-w-6xl px-6">
-        {/* Section Title */}
-        <div className="text-center max-w-2xl mx-auto mb-16">
-          <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-400">
-            Engineered with Precision
-          </h2>
-          <p className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Everything You Need. Nothing You Don't.
-          </p>
-          <p className="mt-3 text-sm text-zinc-400">
-            Designed for database engineers who appreciate lean codebases and instant responsiveness.
-          </p>
+    <>
+      <div className="database-strip container" aria-label="Supported databases"><p>Three databases.<br /><strong>One familiar workspace.</strong></p><div className="engine"><Database aria-hidden="true" />PostgreSQL</div><div className="engine"><Database aria-hidden="true" />MySQL</div><div className="engine"><FileCode2 aria-hidden="true" />SQLite</div></div>
+      <section id="features" className="features-section container" aria-labelledby="features-title">
+        <div className="section-heading"><h2 id="features-title">Stay in your flow.<br /><span>Stay close to your data.</span></h2><p>The tools you reach for every day,<br className="desktop-break" /> without a workspace full of distractions.</p></div>
+        <div className="feature-layout">
+          <article className="query-feature">
+            <div className="feature-copy"><h3>A proper editor.<br />Right where you need it.</h3><p>Write SQL with Monaco—the editor behind VS Code. Syntax highlighting, autocomplete, and a resizable results view come built in.</p></div>
+            <div className="code-demo" aria-label="Example SQL query">
+              <div className="code-title"><span>query.sql</span><span>Example query</span></div>
+              <pre><code><span className="sql-comment">-- A little curiosity goes a long way.</span>{"\n"}<span className="sql-keyword">SELECT</span> name, email{"\n"}<span className="sql-keyword">FROM</span> customers{"\n"}<span className="sql-keyword">WHERE</span> status = <span className="sql-string">&apos;active&apos;</span>{"\n"}<span className="sql-keyword">ORDER BY</span> created_at <span className="sql-keyword">DESC</span>;</code></pre>
+              <div className="code-footer"><span><Check size={14} aria-hidden="true" /> Bundled offline</span><span><kbd>⌘</kbd> / <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to run</span></div>
+            </div>
+          </article>
+          <div className="feature-details">
+            <article><span className="feature-symbol"><Database size={22} aria-hidden="true" /></span><h3>See how it all connects.</h3><p>Explore tables by schema. Inspect column types, defaults, and primary keys without jumping between tools.</p><p className="example-label">Example column</p><div className="schema-example" aria-label="Example column metadata"><span><KeyRound size={13} aria-hidden="true" /> id</span><code>uuid</code><span className="schema-tag">primary key</span></div></article>
+            <article><span className="feature-symbol"><KeyRound size={22} aria-hidden="true" /></span><h3>Your connections. Kept local.</h3><p>Save profiles on your own machine with restricted file permissions. Your next session starts with a connection, not a setup form.</p><span className="local-note"><span className="status-dot" /> Stored on your device</span></article>
+          </div>
         </div>
-
-         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {FEATURES.map((f, i) => {
-            const Icon = f.icon
-            return (
-              <div
-                key={i}
-                className="group relative rounded-2xl border border-white/10 bg-[#121215] p-6 hover:border-white/20 transition-all hover:shadow-lg"
-              >
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-white group-hover:bg-white/10 transition-colors mb-4">
-                  <Icon className="h-5 w-5" />
-                </div>
-                <h3 className="text-base font-bold text-white mb-2">{f.title}</h3>
-                <p className="text-xs leading-relaxed text-zinc-400">{f.description}</p>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    </section>
+      </section>
+      <section className="open-source-section" aria-labelledby="open-source-title"><div className="container open-source-inner"><Github size={38} strokeWidth={1.4} aria-hidden="true" /><div><h2 id="open-source-title">Small app. Open book.</h2><p>Built with Go and your system’s native webview. Free to use, with the source right there to explore.</p></div><a className="text-link" href={REPOSITORY_URL} target="_blank" rel="noreferrer">Explore the source <ArrowUpRight size={17} aria-hidden="true" /></a></div></section>
+    </>
   )
 }

@@ -3,11 +3,13 @@ import { Analytics } from "@vercel/analytics/react"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "DBStudio Lite — Fast, Lightweight PostgreSQL Desktop Client",
+  title: "DBStudio Lite — A clearer view of your databases",
   description:
-    "A modular, lightweight cross-platform PostgreSQL desktop client built with Go, Next.js, and Wails v2. Featuring in-memory speed, Monaco SQL console, and zero external telemetry.",
+    "A lightweight desktop workspace for PostgreSQL, MySQL, and SQLite. Explore your data, write SQL, and get back to building. Free and open source.",
   keywords: [
     "PostgreSQL",
+    "MySQL",
+    "SQLite",
     "Postgres client",
     "database GUI",
     "Go",
@@ -23,9 +25,9 @@ export const metadata: Metadata = {
   creator: "Ruhama",
   metadataBase: new URL("https://dbstudio-lite.vercel.app"),
   openGraph: {
-    title: "DBStudio Lite — Fast, Lightweight PostgreSQL Desktop Client",
+    title: "DBStudio Lite — A clearer view of your databases",
     description:
-      "A modular, lightweight cross-platform PostgreSQL desktop client built with Go, Next.js, and Wails v2.",
+      "A lightweight desktop workspace for PostgreSQL, MySQL, and SQLite.",
     url: "https://dbstudio-lite.vercel.app",
     siteName: "DBStudio Lite",
     images: [
@@ -41,9 +43,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "DBStudio Lite — Fast, Lightweight PostgreSQL Desktop Client",
+    title: "DBStudio Lite — A clearer view of your databases",
     description:
-      "Modular, lightweight cross-platform PostgreSQL desktop client built with Go, Next.js, and Wails v2.",
+      "A lightweight desktop workspace for PostgreSQL, MySQL, and SQLite.",
     images: ["/screenshots/2.jpg"],
   },
   robots: {
@@ -65,8 +67,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className="min-h-screen bg-[#09090b] text-[#fafafa] antialiased selection:bg-white selection:text-black">
+    <html lang="en">
+      <body>
         {children}
         <Analytics />
       </body>

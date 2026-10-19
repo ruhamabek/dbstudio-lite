@@ -1,49 +1,35 @@
-import React from "react"
-import { Database, Github } from "lucide-react"
+import { Database } from "lucide-react"
+import { REPOSITORY_URL } from "@/lib/releases"
 
 export function Footer() {
   return (
-    <footer className="border-t border-white/10 bg-[#09090b] py-12 text-zinc-400">
-      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 px-6 sm:flex-row">
-         <div className="flex items-center gap-3">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-white/10 text-white border border-white/10">
-            <Database className="h-3.5 w-3.5" />
-          </div>
-          <span className="text-sm font-bold text-white tracking-tight">
-            DBStudio Lite
-          </span>
-          <span className="text-xs text-zinc-500">
-            Released under GNU AGPL-3.0
-          </span>
+    <footer className="site-footer">
+      <div className="footer-main">
+        <div className="footer-top">
+          <p className="footer-headline">A clearer view starts here.</p>
+          <nav className="footer-link-column" aria-label="Product links">
+            <h2>Product</h2>
+            <a href="#download">Download</a>
+            <a href="#preview">Workspace</a>
+            <a href="#features">Features</a>
+            <a href={`${REPOSITORY_URL}/releases`} target="_blank" rel="noreferrer">Releases</a>
+          </nav>
+          <nav className="footer-link-column" aria-label="Resources">
+            <h2>Resources</h2>
+            <a href={`${REPOSITORY_URL}#readme`} target="_blank" rel="noreferrer">Documentation</a>
+            <a href={REPOSITORY_URL} target="_blank" rel="noreferrer">Source code</a>
+            <a href={`${REPOSITORY_URL}/issues`} target="_blank" rel="noreferrer">Feedback</a>
+          </nav>
         </div>
-
-         <div className="flex items-center gap-6 text-xs font-medium">
-          <a
-            href="https://github.com/ruhamabek/dbstudio-lite"
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-1.5 hover:text-white transition-colors"
-          >
-            <Github className="h-3.5 w-3.5" />
-            <span>GitHub Repository</span>
-          </a>
-          <a
-            href="https://github.com/ruhamabek/dbstudio-lite/releases"
-            target="_blank"
-            rel="noreferrer"
-            className="hover:text-white transition-colors"
-          >
-            Releases
-          </a>
-          <a
-            href="https://github.com/ruhamabek/dbstudio-lite/blob/main/LICENSE"
-            target="_blank"
-            rel="noreferrer"
-            className="hover:text-white transition-colors"
-          >
-            License
-          </a>
-        </div>
+        <a href="#top" className="footer-display" aria-label="DBStudio Lite — back to top">
+          <span>DBStudio</span>
+          <span className="footer-display-lite">Lite</span>
+        </a>
+      </div>
+      <div className="footer-bottom">
+        <a href="#top" className="wordmark"><Database aria-hidden="true" size={24} strokeWidth={1.8} /><span>DBStudio Lite</span></a>
+        <p>Free to use. Open by design.</p>
+        <a href={`${REPOSITORY_URL}/blob/main/LICENSE`} target="_blank" rel="noreferrer">AGPL-3.0 License</a>
       </div>
     </footer>
   )
