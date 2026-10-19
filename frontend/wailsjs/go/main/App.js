@@ -6,6 +6,10 @@ export function Connect(arg1) {
   return window['go']['main']['App']['Connect'](arg1);
 }
 
+export function ConnectRelay(arg1) {
+  return window['go']['main']['App']['ConnectRelay'](arg1);
+}
+
 export function ConnectWithURL(arg1) {
   return window['go']['main']['App']['ConnectWithURL'](arg1);
 }
@@ -48,4 +52,12 @@ export function Ping() {
 
 export function SaveConnection(arg1) {
   return window['go']['main']['App']['SaveConnection'](arg1);
+}
+
+export function StartSharing(arg1) {
+  return window['go']['main']['App']['StartSharing'](arg1);
+}
+
+export function StopSharing() {
+  return window['go']['main']['App']['StopSharing']();
 }

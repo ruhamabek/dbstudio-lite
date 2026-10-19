@@ -13,6 +13,9 @@ import {
   GetSavedConnections,
   SaveConnection,
   DeleteConnection,
+  ConnectRelay,
+  StartSharing,
+  StopSharing,
 } from "@wailsjs/go/main/App"
 import { domain as db } from "@wailsjs/go/models"
 
@@ -47,9 +50,14 @@ interface DatabaseContextValue {
   query: QueryState
   activeTab: ActiveTab
   savedConnections: db.SavedConnection[]
+  isSharing: boolean
+  activeShareTicket: string | null
   setActiveTab: (tab: ActiveTab) => void
   connectWithUrl: (url: string) => Promise<boolean>
   connectWithConfig: (cfg: db.Config) => Promise<boolean>
+  connectWithRelay: (ticket: string) => Promise<boolean>
+  startSharing: (perm: string) => Promise<string>
+  stopSharing: () => Promise<void>
   disconnect: () => Promise<void>
   selectTable: (table: db.Table) => Promise<void>
   runQuery: (customSql?: string) => Promise<void>
@@ -89,6 +97,10 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
 
   const [savedConnections, setSavedConnections] = useState<db.SavedConnection[]>([])
   const [activeTab, setActiveTab] = useState<ActiveTab>("data")
+  const [shareState, setShareState] = useState<{ isSharing: boolean; ticket: string | null }>({
+    isSharing: false,
+    ticket: null,
+  })
 
    const loadSavedConnections = useCallback(async () => {
     try {
@@ -180,12 +192,50 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
     [loadTables]
   )
 
+  const connectWithRelay = useCallback(
+    async (ticket: string): Promise<boolean> => {
+      setConnection((prev) => ({ ...prev, isConnecting: true, error: null }))
+      try {
+        await ConnectRelay(ticket)
+        setConnection({
+          isConnected: true,
+          isConnecting: false,
+          activeDsn: "Peer Relay: " + ticket.slice(0, 24) + "...",
+          error: null,
+        })
+        await loadTables()
+        return true
+      } catch (err: any) {
+        setConnection({
+          isConnected: false,
+          isConnecting: false,
+          activeDsn: null,
+          error: err?.message || String(err),
+        })
+        return false
+      }
+    },
+    [loadTables]
+  )
+
+  const handleStartSharing = useCallback(async (perm: string): Promise<string> => {
+    const ticket = await StartSharing(perm)
+    setShareState({ isSharing: true, ticket })
+    return ticket
+  }, [])
+
+  const handleStopSharing = useCallback(async () => {
+    await StopSharing()
+    setShareState({ isSharing: false, ticket: null })
+  }, [])
+
    const disconnect = useCallback(async () => {
     try {
       await Disconnect()
     } catch {
       // ignore
     } finally {
+      setShareState({ isSharing: false, ticket: null })
       setConnection({
         isConnected: false,
         isConnecting: false,
@@ -310,9 +360,14 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
     query,
     activeTab,
     savedConnections,
+    isSharing: shareState.isSharing,
+    activeShareTicket: shareState.ticket,
     setActiveTab,
     connectWithUrl,
     connectWithConfig,
+    connectWithRelay,
+    startSharing: handleStartSharing,
+    stopSharing: handleStopSharing,
     disconnect,
     selectTable,
     runQuery,

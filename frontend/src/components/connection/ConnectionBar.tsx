@@ -5,11 +5,13 @@ import { useDatabase } from "@/context/DatabaseContext"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ConnectionModal } from "./ConnectionModal"
-import { Database, Plus, Unplug, RefreshCw } from "lucide-react"
+import { ShareModal } from "./ShareModal"
+import { Database, Plus, Unplug, RefreshCw, Share2 } from "lucide-react"
 
 export function ConnectionBar() {
-  const { connection, disconnect, refreshTables } = useDatabase()
+  const { connection, disconnect, refreshTables, isSharing } = useDatabase()
   const [modalOpen, setModalOpen] = useState(false)
+  const [shareModalOpen, setShareModalOpen] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
 
   const handleRefresh = async () => {
@@ -56,6 +58,19 @@ export function ConnectionBar() {
           {connection.isConnected ? (
             <>
               <Button
+                variant={isSharing ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShareModalOpen(true)}
+                className={`h-9 px-3.5 gap-1.5 text-sm ${
+                  isSharing
+                    ? "bg-emerald-600 hover:bg-emerald-700 text-white border-transparent"
+                    : ""
+                }`}
+              >
+                <Share2 className="h-4 w-4" />
+                {isSharing ? "Sharing (Active)" : "Share"}
+              </Button>
+              <Button
                 variant="outline"
                 size="sm"
                 onClick={handleRefresh}
@@ -89,6 +104,7 @@ export function ConnectionBar() {
       </header>
 
       <ConnectionModal open={modalOpen} onOpenChange={setModalOpen} />
+      <ShareModal open={shareModalOpen} onOpenChange={setShareModalOpen} />
     </>
   )
 }

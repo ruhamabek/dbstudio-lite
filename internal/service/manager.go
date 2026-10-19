@@ -43,6 +43,15 @@ func (m *ConnectionManager) Runner() (*Runner, error) {
 	return m.runner, nil
 }
 
+func (m *ConnectionManager) Querier() (domain.Querier, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.client == nil {
+		return nil, ErrNotConnected
+	}
+	return m.client, nil
+}
+
 func (m *ConnectionManager) Connect(ctx context.Context, cfg domain.Config) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

@@ -22,6 +22,7 @@ import {
   Trash2,
   FileCode,
   Layers,
+  Radio,
 } from "lucide-react"
 
 interface ConnectionModalProps {
@@ -35,15 +36,17 @@ export function ConnectionModal({ open, onOpenChange }: ConnectionModalProps) {
   const {
     connectWithUrl,
     connectWithConfig,
+    connectWithRelay,
     connection,
     savedConnections,
     saveCurrentConnection,
     deleteSavedConnection,
   } = useDatabase()
 
-  const [mode, setMode] = useState<"saved" | "url" | "fields">(
+  const [mode, setMode] = useState<"saved" | "url" | "fields" | "relay">(
     savedConnections.length > 0 ? "saved" : "url"
   )
+  const [relayTicket, setRelayTicket] = useState("")
 
   const [selectedDriver, setSelectedDriver] = useState<DriverType>("postgres")
   const [sqlitePath, setSqlitePath] = useState("/home/sapphire/dbstudio-lite/sample.db")
@@ -82,7 +85,9 @@ export function ConnectionModal({ open, onOpenChange }: ConnectionModalProps) {
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault()
     let success = false
-    if (mode === "url") {
+    if (mode === "relay") {
+      success = await connectWithRelay(relayTicket.trim())
+    } else if (mode === "url") {
       success = await connectWithUrl(rawUrl)
       if (success && shouldSave && profileName.trim()) {
         await saveCurrentConnection(profileName.trim(), rawUrl)
@@ -182,6 +187,18 @@ export function ConnectionModal({ open, onOpenChange }: ConnectionModalProps) {
             >
               <Sliders className="h-4 w-4" />
               Parameters
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("relay")}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md transition-colors ${
+                mode === "relay"
+                  ? "bg-background text-foreground shadow-xs font-semibold"
+                  : "hover:text-foreground"
+              }`}
+            >
+              <Radio className="h-4 w-4" />
+              Peer Relay
             </button>
           </div>
 
@@ -441,6 +458,33 @@ export function ConnectionModal({ open, onOpenChange }: ConnectionModalProps) {
                     />
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {mode === "relay" && (
+            <div className="space-y-3.5">
+              <div className="rounded-lg border border-border bg-card/60 p-3.5 text-xs text-muted-foreground space-y-1.5">
+                <div className="flex items-center gap-2 font-medium text-foreground">
+                  <Radio className="h-4 w-4 text-primary" />
+                  Connect to a Shared Database
+                </div>
+                <p>
+                  Paste the <code className="bg-muted px-1 py-0.5 rounded font-mono text-[11px]">dbshare://...</code> ticket sent by your teammate to connect directly over the peer relay tunnel without any intermediary servers.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Share Ticket
+                </label>
+                <Input
+                  value={relayTicket}
+                  onChange={(e) => setRelayTicket(e.target.value)}
+                  placeholder="dbshare://eyJwZWVySWQiOi..."
+                  className="font-mono text-xs h-10"
+                  required
+                />
               </div>
             </div>
           )}

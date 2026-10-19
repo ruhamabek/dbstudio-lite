@@ -4,6 +4,8 @@ import {domain} from '../models';
 
 export function Connect(arg1:domain.Config):Promise<void>;
 
+export function ConnectRelay(arg1:string):Promise<void>;
+
 export function ConnectWithURL(arg1:string):Promise<void>;
 
 export function DeleteConnection(arg1:string):Promise<void>;
@@ -25,3 +27,7 @@ export function Greet(arg1:string):Promise<string>;
 export function Ping():Promise<void>;
 
 export function SaveConnection(arg1:domain.SavedConnection):Promise<domain.SavedConnection>;
+
+export function StartSharing(arg1:string):Promise<string>;
+
+export function StopSharing():Promise<void>;
