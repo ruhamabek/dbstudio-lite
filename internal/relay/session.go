@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,6 +21,8 @@ type HandshakeMsg struct {
 
 type HostSession struct {
 	listener net.Listener
+	port     int
+	upnp     *UPnPClient
 	token    string
 	gateway  *HostGateway
 	perm     Permission
@@ -78,10 +81,30 @@ func StartHostSession(
 	tcpAddr, _ := ln.Addr().(*net.TCPAddr)
 	port := tcpAddr.Port
 	var addrs []string
+	var upnpClient *UPnPClient
+
 	if listenAddr == "127.0.0.1:0" || listenAddr == "localhost:0" {
 		addrs = []string{ln.Addr().String()}
 	} else {
 		addrs = getReachableAddrs(port)
+
+ 		stunCtx, cancel := context.WithTimeout(ctx, 1500*time.Millisecond)
+		if pubIP, err := DiscoverPublicIP(stunCtx, ""); err == nil && pubIP != "" {
+			addrs = append([]string{fmt.Sprintf("%s:%d", pubIP, port)}, addrs...)
+		}
+		cancel()
+
+ 		upnpClient = NewUPnPClient()
+		localIP := "127.0.0.1"
+		for _, a := range addrs {
+			if h, _, err := net.SplitHostPort(a); err == nil && !strings.HasPrefix(h, "127.") {
+				localIP = h
+				break
+			}
+		}
+		upnpCtx, uCancel := context.WithTimeout(ctx, 1*time.Second)
+		_ = upnpClient.ForwardPort(upnpCtx, port, localIP)
+		uCancel()
 	}
 
 	ticket := Ticket{
@@ -100,6 +123,8 @@ func StartHostSession(
 
 	session := &HostSession{
 		listener: ln,
+		port:     port,
+		upnp:     upnpClient,
 		token:    token,
 		gateway:  NewHostGateway(inspector, querier),
 		perm:     perm,
@@ -159,6 +184,13 @@ func (s *HostSession) Close() error {
 		return nil
 	default:
 		close(s.closed)
+	}
+
+	// Clean up router UPnP port mapping
+	if s.upnp != nil && s.port > 0 {
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		_ = s.upnp.DeletePort(ctx, s.port)
+		cancel()
 	}
 
 	for _, c := range s.conns {

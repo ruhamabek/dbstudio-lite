@@ -20,7 +20,7 @@ export default function HomePage() {
     },
     description:
       "A lightweight desktop workspace for PostgreSQL, MySQL, and SQLite. Explore data, inspect schemas, and write SQL.",
-    downloadUrl: "https://github.com/ruhamabek/dbstudio-lite/releases/tag/v0.1.0",
+    downloadUrl: "https://github.com/ruhamabek/dbstudio-lite/releases/latest",
     author: {
       "@type": "Person",
       name: "Ruhama",
