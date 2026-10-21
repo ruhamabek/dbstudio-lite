@@ -21,6 +21,8 @@ var (
 type Ticket struct {
 	PeerID     string     `json:"peerId"`
 	Addrs      []string   `json:"addrs,omitempty"`
+	NodeID     string     `json:"nodeId,omitempty"`
+	RelayURLs  []string   `json:"relayUrls,omitempty"`
 	Permission Permission `json:"permission"`
 	Database   string     `json:"database,omitempty"`
 	Token      string     `json:"token"`

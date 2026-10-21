@@ -7,38 +7,53 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
+	"net/netip"
 	"strings"
 	"sync"
 	"time"
 
 	"app-dev/internal/domain"
+	"github.com/tmc/go-iroh/iroh"
+	"github.com/tmc/go-iroh/key"
+	"github.com/tmc/go-iroh/netaddr"
+	"github.com/tmc/go-iroh/relay"
 )
+
+const RelayALPN = "dbstudio/relay/1"
 
 type HandshakeMsg struct {
 	Token string `json:"token"`
 }
 
-type HostSession struct {
-	listener net.Listener
-	port     int
-	upnp     *UPnPClient
-	token    string
-	gateway  *HostGateway
-	perm     Permission
-	dbName   string
-	closed   chan struct{}
-	mu       sync.Mutex
-	conns    []net.Conn
+type closerFunc func() error
+
+func (f closerFunc) Close() error {
+	if f == nil {
+		return nil
+	}
+	return f()
 }
 
+type HostSession struct {
+	listener     net.Listener
+	irohEndpoint *iroh.Endpoint
+	port         int
+	token        string
+	gateway      *HostGateway
+	perm         Permission
+	dbName       string
+	closed       chan struct{}
+	mu           sync.Mutex
+	conns        []io.Closer
+}
 
 func getReachableAddrs(port int) []string {
 	var addrs []string
 	ifaces, err := net.Interfaces()
 	if err == nil {
 		for _, iface := range ifaces {
-
 			if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
 				continue
 			}
@@ -81,35 +96,44 @@ func StartHostSession(
 	tcpAddr, _ := ln.Addr().(*net.TCPAddr)
 	port := tcpAddr.Port
 	var addrs []string
-	var upnpClient *UPnPClient
+	var irohEp *iroh.Endpoint
+	var relayURLs []string
+	var nodeID string
 
 	if listenAddr == "127.0.0.1:0" || listenAddr == "localhost:0" {
 		addrs = []string{ln.Addr().String()}
 	} else {
 		addrs = getReachableAddrs(port)
 
- 		stunCtx, cancel := context.WithTimeout(ctx, 1500*time.Millisecond)
-		if pubIP, err := DiscoverPublicIP(stunCtx, ""); err == nil && pubIP != "" {
-			addrs = append([]string{fmt.Sprintf("%s:%d", pubIP, port)}, addrs...)
-		}
-		cancel()
+		// Mentos/Iroh cross-network peer reachability via n0 relay
+		iCtx, iCancel := context.WithTimeout(ctx, 5*time.Second)
+		ep, err := iroh.Bind(iCtx,
+			iroh.WithALPNs(RelayALPN),
+			iroh.WithRelayMode(relay.ModeDefault()),
+		)
+		iCancel()
+		if err == nil {
+			irohEp = ep
+			nodeID = ep.ID().String()
 
- 		upnpClient = NewUPnPClient()
-		localIP := "127.0.0.1"
-		for _, a := range addrs {
-			if h, _, err := net.SplitHostPort(a); err == nil && !strings.HasPrefix(h, "127.") {
-				localIP = h
-				break
+			onlineCtx, oCancel := context.WithTimeout(ctx, 3*time.Second)
+			_ = ep.Online(onlineCtx)
+			oCancel()
+
+			for _, ru := range ep.Addr().RelayURLs() {
+				relayURLs = append(relayURLs, ru.String())
+			}
+			for _, ip := range ep.Addr().IPAddrs() {
+				addrs = append(addrs, ip.String())
 			}
 		}
-		upnpCtx, uCancel := context.WithTimeout(ctx, 1*time.Second)
-		_ = upnpClient.ForwardPort(upnpCtx, port, localIP)
-		uCancel()
 	}
 
 	ticket := Ticket{
 		PeerID:     "node-" + token[:8],
 		Addrs:      addrs,
+		NodeID:     nodeID,
+		RelayURLs:  relayURLs,
 		Permission: perm,
 		Database:   dbName,
 		Token:      token,
@@ -118,21 +142,27 @@ func StartHostSession(
 	ticketStr, err := ticket.Encode()
 	if err != nil {
 		ln.Close()
+		if irohEp != nil {
+			_ = irohEp.Shutdown(context.Background())
+		}
 		return nil, "", fmt.Errorf("failed to encode share ticket: %w", err)
 	}
 
 	session := &HostSession{
-		listener: ln,
-		port:     port,
-		upnp:     upnpClient,
-		token:    token,
-		gateway:  NewHostGateway(inspector, querier),
-		perm:     perm,
-		dbName:   dbName,
-		closed:   make(chan struct{}),
+		listener:     ln,
+		irohEndpoint: irohEp,
+		port:         port,
+		token:        token,
+		gateway:      NewHostGateway(inspector, querier),
+		perm:         perm,
+		dbName:       dbName,
+		closed:       make(chan struct{}),
 	}
 
 	go session.acceptLoop(ctx)
+	if irohEp != nil {
+		go session.irohAcceptLoop(ctx)
+	}
 
 	return session, ticketStr, nil
 }
@@ -155,24 +185,64 @@ func (s *HostSession) acceptLoop(ctx context.Context) {
 		s.conns = append(s.conns, conn)
 		s.mu.Unlock()
 
-		go s.handleConn(ctx, conn)
+		go s.handleStream(ctx, conn)
 	}
 }
 
-func (s *HostSession) handleConn(ctx context.Context, conn net.Conn) {
-	defer conn.Close()
+func (s *HostSession) irohAcceptLoop(ctx context.Context) {
+	for {
+		conn, err := s.irohEndpoint.Accept(ctx)
+		if err != nil {
+			select {
+			case <-s.closed:
+				return
+			case <-ctx.Done():
+				return
+			default:
+				return
+			}
+		}
 
-	_ = conn.SetDeadline(time.Now().Add(3 * time.Second))
+		go s.handleIrohConn(ctx, conn)
+	}
+}
+
+func (s *HostSession) handleIrohConn(ctx context.Context, conn *iroh.Conn) {
+	defer conn.CloseWithError(0, "closed")
+	for {
+		stream, err := conn.AcceptStream(ctx)
+		if err != nil {
+			return
+		}
+
+		s.mu.Lock()
+		s.conns = append(s.conns, stream)
+		s.mu.Unlock()
+
+		go s.handleStream(ctx, stream)
+	}
+}
+
+func (s *HostSession) handleStream(ctx context.Context, rw io.ReadWriteCloser) {
+	defer rw.Close()
+
+	if c, ok := rw.(net.Conn); ok {
+		_ = c.SetDeadline(time.Now().Add(5 * time.Second))
+	}
+
 	var hs HandshakeMsg
-	if err := json.NewDecoder(conn).Decode(&hs); err != nil || hs.Token != s.token {
-		_ = json.NewEncoder(conn).Encode(Response{Error: "unauthorized: invalid session token"})
+	if err := json.NewDecoder(rw).Decode(&hs); err != nil || hs.Token != s.token {
+		_ = json.NewEncoder(rw).Encode(Response{Error: "unauthorized: invalid session token"})
 		return
 	}
 
-	_ = json.NewEncoder(conn).Encode(Response{Result: json.RawMessage(`"ok"`)})
-	_ = conn.SetDeadline(time.Time{})
+	_ = json.NewEncoder(rw).Encode(Response{Result: json.RawMessage(`"ok"`)})
 
-	_ = ServeStream(ctx, conn, s.gateway, s.perm)
+	if c, ok := rw.(net.Conn); ok {
+		_ = c.SetDeadline(time.Time{})
+	}
+
+	_ = ServeStream(ctx, rw, s.gateway, s.perm)
 }
 
 func (s *HostSession) Close() error {
@@ -186,10 +256,9 @@ func (s *HostSession) Close() error {
 		close(s.closed)
 	}
 
-	// Clean up router UPnP port mapping
-	if s.upnp != nil && s.port > 0 {
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-		_ = s.upnp.DeletePort(ctx, s.port)
+	if s.irohEndpoint != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		_ = s.irohEndpoint.Shutdown(ctx)
 		cancel()
 	}
 
@@ -205,45 +274,110 @@ func DialTicket(ctx context.Context, ticketStr string) (*RelayClient, error) {
 		return nil, fmt.Errorf("failed to parse ticket: %w", err)
 	}
 
-	if len(ticket.Addrs) == 0 {
-		return nil, errors.New("ticket contains no network addresses")
-	}
+	var stream io.ReadWriteCloser
+	var closeFunc func() error
+	var dialErrors []string
 
-	var conn net.Conn
-	var dialErr error
-
-	dialer := net.Dialer{Timeout: 3 * time.Second}
-	for _, addr := range ticket.Addrs {
-		c, err := dialer.DialContext(ctx, "tcp", addr)
-		if err == nil {
-			conn = c
-			break
+	if len(ticket.Addrs) > 0 {
+		dialer := net.Dialer{Timeout: 1500 * time.Millisecond}
+		for _, addr := range ticket.Addrs {
+			c, err := dialer.DialContext(ctx, "tcp", addr)
+			if err == nil {
+				stream = c
+				closeFunc = c.Close
+				break
+			}
+			dialErrors = append(dialErrors, fmt.Sprintf("tcp://%s: %v", addr, err))
 		}
-		dialErr = err
 	}
 
-	if conn == nil {
-		return nil, fmt.Errorf("could not connect to peer: %w", dialErr)
+	if stream == nil && ticket.NodeID != "" {
+		ep, err := iroh.Bind(ctx, iroh.WithRelayMode(relay.ModeDefault()))
+		if err != nil {
+			dialErrors = append(dialErrors, fmt.Sprintf("iroh bind failed: %v", err))
+		} else {
+			nodeID, err := key.ParseEndpointID(ticket.NodeID)
+			if err != nil {
+				_ = ep.Shutdown(ctx)
+				dialErrors = append(dialErrors, fmt.Sprintf("invalid ticket nodeID %q: %v", ticket.NodeID, err))
+			} else {
+				addr := netaddr.NewEndpointAddr(nodeID)
+				for _, r := range ticket.RelayURLs {
+					if ru, err := netaddr.ParseRelayURL(r); err == nil {
+						addr = addr.WithRelayURL(ru)
+					}
+				}
+				for _, a := range ticket.Addrs {
+					if ap, err := netip.ParseAddrPort(a); err == nil {
+						addr = addr.WithIP(ap)
+					}
+				}
+
+				connCtx, cCancel := context.WithTimeout(ctx, 15*time.Second)
+				conn, err := ep.Connect(connCtx, addr, RelayALPN)
+				cCancel()
+				if err != nil {
+					_ = ep.Shutdown(ctx)
+					dialErrors = append(dialErrors, fmt.Sprintf("iroh connect to %s failed: %v", ticket.NodeID, err))
+				} else {
+					s, err := conn.OpenStreamSync(ctx)
+					if err != nil {
+						conn.CloseWithError(1, "stream error")
+						_ = ep.Shutdown(ctx)
+						dialErrors = append(dialErrors, fmt.Sprintf("iroh open stream failed: %v", err))
+					} else {
+						stream = s
+						closeFunc = func() error {
+							_ = s.Close()
+							conn.CloseWithError(0, "done")
+							return ep.Shutdown(context.Background())
+						}
+					}
+				}
+			}
+		}
 	}
 
-	_ = conn.SetDeadline(time.Now().Add(3 * time.Second))
-	if err := json.NewEncoder(conn).Encode(HandshakeMsg{Token: ticket.Token}); err != nil {
-		conn.Close()
+	if stream == nil {
+		if len(dialErrors) > 0 {
+			return nil, fmt.Errorf("could not connect to peer: %s", strings.Join(dialErrors, "; "))
+		}
+		return nil, errors.New("ticket contains no reachable network addresses or relay identifiers")
+	}
+
+	if c, ok := stream.(net.Conn); ok {
+		_ = c.SetDeadline(time.Now().Add(5 * time.Second))
+	}
+
+	if err := json.NewEncoder(stream).Encode(HandshakeMsg{Token: ticket.Token}); err != nil {
+		if closeFunc != nil {
+			_ = closeFunc()
+		}
 		return nil, fmt.Errorf("handshake write failed: %w", err)
 	}
 
 	var hsResp Response
-	if err := json.NewDecoder(conn).Decode(&hsResp); err != nil {
-		conn.Close()
+	if err := json.NewDecoder(stream).Decode(&hsResp); err != nil {
+		if closeFunc != nil {
+			_ = closeFunc()
+		}
 		return nil, fmt.Errorf("handshake read failed: %w", err)
 	}
 	if hsResp.Error != "" {
-		conn.Close()
+		if closeFunc != nil {
+			_ = closeFunc()
+		}
 		return nil, errors.New(hsResp.Error)
 	}
-	_ = conn.SetDeadline(time.Time{})
 
-	caller := NewStreamCaller(conn)
-	return NewRelayClient(caller), nil
+	if c, ok := stream.(net.Conn); ok {
+		_ = c.SetDeadline(time.Time{})
+	}
+
+	caller := NewStreamCaller(stream)
+	client := NewRelayClient(caller)
+	if closeFunc != nil {
+		client.closer = closerFunc(closeFunc)
+	}
+	return client, nil
 }
-

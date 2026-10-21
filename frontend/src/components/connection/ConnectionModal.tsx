@@ -49,7 +49,7 @@ export function ConnectionModal({ open, onOpenChange }: ConnectionModalProps) {
   const [relayTicket, setRelayTicket] = useState("")
 
   const [selectedDriver, setSelectedDriver] = useState<DriverType>("postgres")
-  const [sqlitePath, setSqlitePath] = useState("/home/sapphire/dbstudio-lite/sample.db")
+  const [sqlitePath, setSqlitePath] = useState("")
 
   // URL mode
   const [rawUrl, setRawUrl] = useState(
@@ -68,7 +68,7 @@ export function ConnectionModal({ open, onOpenChange }: ConnectionModalProps) {
   const handleDriverChange = (driver: DriverType) => {
     setSelectedDriver(driver)
     if (driver === "sqlite") {
-      setRawUrl("sqlite:///home/sapphire/dbstudio-lite/sample.db")
+      setRawUrl("sqlite:///path/to/database.db")
     } else if (driver === "mysql") {
       if (port === "5432" || !port) setPort("3306")
       if (user === "postgres") setUser("root")
